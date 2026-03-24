@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Corregir factura</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #0f1117;
+      --surface: #1a1d27;
+      --border:  #2a2d3a;
+      --accent:  #e85220;
+      --accent2: #ff6b40;
+      --text:    #e8eaf0;
+      --muted:   #6b7280;
+      --success: #22c55e;
+      --error:   #ef4444;
+      --in-bg:   #12141e;
+    }
+
+    body {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 36px;
+      width: 100%;
+      max-width: 600px;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 28px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 12px var(--accent);
+      flex-shrink: 0;
+    }
+
+    h1   { font-size: 15px; font-weight: 600; letter-spacing: 0.02em; }
+    .sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+    .file-box {
+      background: var(--in-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin-bottom: 24px;
+      font-size: 12px;
+    }
+
+    .lbl {
+      color: var(--muted);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 4px;
+    }
+
+    .val { color: var(--text); word-break: break-all; }
+    a    { color: var(--accent2); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .section {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+
+    .field { margin-bottom: 16px; }
+
+    label {
+      display: block;
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    input, select {
+      width: 100%;
+      background: var(--in-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 14px;
+      padding: 10px 14px;
+      outline: none;
+      transition: border-color 0.15s;
+      appearance: none;
+    }
+
+    input:focus, select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(232,82,32,0.15);
+    }
+
+    select option { background: #1a1d27; }
+
+    .hint { font-size: 10px; color: var(--muted); margin-top: 5px; }
+
+    .preview {
+      background: var(--in-bg);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 6px;
+      padding: 14px 16px;
+      margin: 20px 0 24px;
+    }
+
+    .preview .filename {
+      font-size: 12px;
+      color: var(--accent2);
+      font-weight: 600;
+      word-break: break-all;
+      line-height: 1.5;
+    }
+
+    button {
+      width: 100%;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 13px;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+    }
+
+    button:hover  { background: var(--accent2); }
+    button:active { transform: scale(0.98); }
+    button:disabled { background: var(--muted); cursor: not-allowed; }
+
+    .msg {
+      margin-top: 18px;
+      padding: 12px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      line-height: 1.6;
+      display: none;
+      white-space: pre-wrap;
+    }
+
+    .msg.ok  { background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.3); color: var(--success); }
+    .msg.err { background: rgba(239,68,68,0.12);  border: 1px solid rgba(239,68,68,0.3);  color: var(--error); }
+
+    .empty { text-align: center; color: var(--muted); padding: 40px 0; font-size: 13px; line-height: 1.9; }
+  </style>
+</head>
+<body>
+<div class="card">
+
+  <div id="ui">
+    <div class="header">
+      <div class="dot"></div>
+      <div>
+        <h1>Corregir factura</h1>
+        <div class="sub" id="entity-label">—</div>
+      </div>
+    </div>
+
+    <div class="file-box">
+      <div class="lbl">Archivo original</div>
+      <div class="val" id="orig-name">—</div>
+      <div style="margin-top:8px;">
+        <a id="drive-link" href="#" target="_blank">Abrir en Google Drive →</a>
+      </div>
+    </div>
+
+    <div class="section">Datos detectados por Claude — edita si es necesario</div>
+
+    <div class="field">
+      <label for="f-concepto">Concepto</label>
+      <select id="f-concepto">
+        <option value="">— Selecciona el concepto —</option>
+        <option>Alojamiento evento</option>
+        <option>Alquiler Oficina Salt</option>
+        <option>Alquiler Oficina Sant Gregori</option>
+        <option>Autopista</option>
+        <option>Canon</option>
+        <option>Combustible</option>
+        <option>Comida con clientes</option>
+        <option>Electricidad Oficina</option>
+        <option>Formación</option>
+        <option>Gestoría / Asesoría</option>
+        <option>Informática</option>
+        <option>Marketing</option>
+        <option>Material de oficina</option>
+        <option>Publicidad</option>
+        <option>Seguros</option>
+        <option>Software</option>
+        <option>Telefonía</option>
+        <option>Tren</option>
+        <option>Otros</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="f-nombre">Nombre comercial del emisor</label>
+      <input type="text" id="f-nombre"
+             placeholder="Ej: Vodafone, El Celler de Can Roca, Bárymont…">
+      <div class="hint">Nombre visible en la factura, no la razón social legal</div>
+    </div>
+
+    <div class="field">
+      <label for="f-numero">Número de factura</label>
+      <input type="text" id="f-numero"
+             placeholder="Ej: E234-2026, 2026/034, FAC-089…">
+      <div class="hint">Cópialo exactamente como aparece en el PDF</div>
+    </div>
+
+    <div class="field">
+      <label for="f-fecha">Fecha de la factura</label>
+      <input type="text" id="f-fecha"
+             placeholder="dd.MM.yyyy — Ej: 13.04.2026" maxlength="10">
+    </div>
+
+    <div class="preview">
+      <div class="lbl">Nombre final del archivo</div>
+      <div class="filename" id="preview">— (rellena los cuatro campos)</div>
+    </div>
+
+    <button id="btn" onclick="guardar()">Guardar corrección</button>
+    <div class="msg" id="msg"></div>
+  </div>
+
+  <div class="empty" id="empty" style="display:none">
+    Esta página se abre desde el enlace<br>del email de incidencia.<br><br>
+    No hay datos que mostrar directamente.
+  </div>
+
+</div>
+<script>
+// ── CONFIGURACIÓN ─────────────────────────────────────────────────
+const GITHUB_OWNER = 'koruteam';
+const GITHUB_REPO  = 'facturator';
+// Token se guarda en localStorage la primera vez — nunca en el código
+function getToken() {
+  let t = localStorage.getItem('facturator_pat');
+  if (!t) {
+    t = prompt('Introduce tu GitHub Personal Access Token (se guardará en este navegador):');
+    if (t) localStorage.setItem('facturator_pat', t.trim());
+  }
+  return t ? t.trim() : null;
+}
+// ──────────────────────────────────────────────────────────────────
+
+const p        = new URLSearchParams(window.location.search);
+const fileId   = p.get('fileid');
+const entity   = p.get('entity');
+const origNm   = p.get('name');
+const detCon   = p.get('concepto');
+const detNom   = p.get('emisor');
+const detNum   = p.get('numero');
+const detFec   = p.get('fecha');
+
+if (!fileId || !entity) {
+  document.getElementById('ui').style.display    = 'none';
+  document.getElementById('empty').style.display = 'block';
+} else {
+  document.getElementById('entity-label').textContent = entity;
+  document.getElementById('orig-name').textContent    = origNm || '(sin nombre)';
+  document.getElementById('drive-link').href =
+    `https://drive.google.com/file/d/${fileId}/view`;
+
+  const cEl = document.getElementById('f-concepto');
+  const nEl = document.getElementById('f-nombre');
+  const numEl = document.getElementById('f-numero');
+  const fEl = document.getElementById('f-fecha');
+
+  // Pre-rellenar con lo que detectó Claude
+  if (detCon) {
+    for (let opt of cEl.options) {
+      if (opt.value.toLowerCase() === detCon.toLowerCase()) {
+        opt.selected = true; break;
+      }
+    }
+  }
+  nEl.value   = detNom || '';
+  numEl.value = detNum || '';
+  fEl.value   = detFec || '';
+
+  updatePreview();
+  [cEl, nEl, numEl, fEl].forEach(el =>
+    el.addEventListener('input', updatePreview)
+  );
+}
+
+function updatePreview() {
+  const con = document.getElementById('f-concepto').value.trim();
+  const nom = document.getElementById('f-nombre').value.trim();
+  const num = document.getElementById('f-numero').value.trim();
+  const fec = document.getElementById('f-fecha').value.trim();
+  const pr  = document.getElementById('preview');
+
+  if (con && nom && num && /^\d{2}\.\d{2}\.\d{4}$/.test(fec)) {
+    pr.textContent = `${con} - ${nom} - Factura ${num} - ${fec}.pdf`;
+  } else {
+    pr.textContent = '— (rellena los cuatro campos)';
+  }
+}
+
+function showMsg(tipo, txt) {
+  const el = document.getElementById('msg');
+  el.className     = `msg ${tipo}`;
+  el.textContent   = txt;
+  el.style.display = 'block';
+}
+
+async function guardar() {
+  const con = document.getElementById('f-concepto').value.trim();
+  const nom = document.getElementById('f-nombre').value.trim();
+  const num = document.getElementById('f-numero').value.trim();
+  const fec = document.getElementById('f-fecha').value.trim();
+  const btn = document.getElementById('btn');
+
+  if (!con) { showMsg('err', 'Selecciona el concepto.'); return; }
+  if (!nom) { showMsg('err', 'Escribe el nombre del emisor.'); return; }
+  if (!num) { showMsg('err', 'Escribe el número de factura.'); return; }
+  if (!/^\d{2}\.\d{2}\.\d{4}$/.test(fec)) {
+    showMsg('err', 'La fecha debe tener formato dd.MM.yyyy\nEjemplo: 13.04.2026');
+    return;
+  }
+
+  btn.disabled    = true;
+  btn.textContent = 'Guardando…';
+
+  const correction = {
+    file_id          : fileId,
+    entity           : entity,
+    original_name    : origNm,
+    detected_concepto: detCon  || null,
+    detected_nombre  : detNom  || null,
+    detected_numero  : detNum  || null,
+    detected_fecha   : detFec  || null,
+    correct_concepto : con,
+    correct_nombre   : nom,
+    correct_numero   : num,
+    correct_fecha    : fec,
+    corrected_at     : new Date().toISOString(),
+  };
+
+  try {
+    const token = getToken();
+  if (!token) { showMsg('err', 'Token no introducido. Recarga la página para intentarlo de nuevo.'); btn.disabled = false; btn.textContent = 'Guardar corrección'; return; }
+
+  const apiUrl = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/corrections.json`;
+    const hdrs   = {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type' : 'application/json',
+    };
+
+    const getR = await fetch(apiUrl, { headers: hdrs });
+    let current = [], sha = null;
+
+    if (getR.ok) {
+      const gj = await getR.json();
+      sha      = gj.sha;
+      current  = JSON.parse(atob(gj.content.replace(/\n/g, '')));
+    } else if (getR.status !== 404) {
+      throw new Error(`Error leyendo corrections.json: HTTP ${getR.status}`);
+    }
+
+    if (current.some(c => c.file_id === fileId)) {
+      showMsg('ok',
+        '✓ Esta factura ya tenía una corrección guardada.\n' +
+        'Se procesará en la próxima ejecución nocturna.'
+      );
+      btn.disabled    = false;
+      btn.textContent = 'Guardar corrección';
+      return;
+    }
+
+    current.push(correction);
+
+    const body = {
+      message: `Corrección: ${con} — ${nom} — Factura ${num} — ${fec}`,
+      content: btoa(unescape(encodeURIComponent(
+        JSON.stringify(current, null, 2)
+      ))),
+    };
+    if (sha) body.sha = sha;
+
+    const putR = await fetch(apiUrl, {
+      method : 'PUT',
+      headers: hdrs,
+      body   : JSON.stringify(body),
+    });
+
+    if (!putR.ok) {
+      const err = await putR.json();
+      throw new Error(err.message || `HTTP ${putR.status}`);
+    }
+
+    showMsg('ok',
+      `✓ Corrección guardada.\n\n` +
+      `La factura se procesará esta noche.\n\n` +
+      `Nombre final:\n"${con} - ${nom} - Factura ${num} - ${fec}.pdf"`
+    );
+    btn.textContent = '✓ Guardado';
+
+  } catch(e) {
+    showMsg('err', `Error al guardar: ${e.message}`);
+    btn.disabled    = false;
+    btn.textContent = 'Guardar corrección';
+  }
+}
+</script>
+</body>
+</html>
